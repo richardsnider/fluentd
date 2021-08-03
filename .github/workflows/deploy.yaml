@@ -35,5 +35,6 @@ jobs:
             --publish 24224:24224 \
             --publish 24224:24224/udp \
             --volume $(pwd)/fluent.conf:/fluentd/etc/fluent.conf \
+            --detach \
             --name fluentd \
             $IMAGE_NAME:$COMMIT_SHA_TAG fluentd --config /fluentd/etc/fluent.conf --verbose
