@@ -20,7 +20,6 @@ jobs:
       META_DATA_URL: "http://169.254.169.254/latest/meta-data"
       S3_BUCKET_NAME: vorprog-logs
     steps:
-        - run: cd git_source_code
         - run: |
             export EXISTING_CONTAINER_ID=$(sudo docker ps --quiet --filter name=$IMAGE_NAME)
             if [[ -z "${EXISTING_CONTAINER_ID-}" ]]; then echo "No existing container named $IMAGE_NAME is running. Exiting current step." && exit 0; fi
@@ -29,6 +28,7 @@ jobs:
         - run: |
             export AVAILABILITY_ZONE=$(curl $META_DATA_URL/placement/availability-zone)
             export AWS_REGION=${AVAILABILITY_ZONE::-1}
+            cd git_source_code
             sudo docker run \
             --env AWS_REGION=$AWS_REGION \
             --env S3_BUCKET_NAME=$S3_BUCKET_NAME \
