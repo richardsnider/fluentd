@@ -1,0 +1,22 @@
+name: build
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      imageTag:
+        description: 'Image Tag'
+        required: false
+        default: 'latest'
+env:
+  GITHUB_REPO_URL: https://github.com/vorprog/fluentd.git
+  COMMIT_SHA_TAG: ${{ github.sha }}
+  IMAGE_NAME: fluentd
+jobs:
+  build:
+    runs-on: [self-hosted, linux, ARM64]
+    steps:
+        - run: if [[ ! -d "git_source_code" ]]; then echo "git_source_code directory not found, cloning $GITHUB_REPO_URL . . ." && git clone $GITHUB_REPO_URL git_source_code; fi
+        - run: cd git_source_code && git pull && cd ..
+        - run: sudo docker build git_source_code --file git_source_code/Dockerfile --build-arg BUILD_COMMIT=$COMMIT_SHA_TAG --tag $IMAGE_NAME:$COMMIT_SHA_TAG --tag $IMAGE_NAME:latest

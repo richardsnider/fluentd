@@ -1,0 +1,39 @@
+name: deploy
+on:
+  workflow_run:
+    workflows: ["build"]
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      imageTag:
+        description: 'Image Tag'
+        required: false
+        default: 'latest'
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: [self-hosted, linux, ARM64]
+    env:
+      IMAGE_NAME: fluentd
+      COMMIT_SHA_TAG: ${{ github.sha }}
+      META_DATA_URL: "http://169.254.169.254/latest/meta-data"
+      S3_BUCKET_NAME: vorprog-logs
+    steps:
+        - run: cd git_source_code
+        - run: |
+            export EXISTING_CONTAINER_ID=$(sudo docker ps --quiet --filter name=$IMAGE_NAME)
+            if [[ -z "${EXISTING_CONTAINER_ID-}" ]]; then echo "No existing container named $IMAGE_NAME is running. Exiting current step." && exit 0; fi
+            sudo docker inspect $EXISTING_CONTAINER_ID --format 'ID {{ .Id }} {{printf "\n"}}Started at {{ .State.StartedAt }} {{printf "\n"}}Image ID {{ .Image }}'
+            sudo docker rm --force $EXISTING_CONTAINER_ID
+        - run: |
+            export AVAILABILITY_ZONE=$(curl $META_DATA_URL/placement/availability-zone)
+            export AWS_REGION=${AVAILABILITY_ZONE::-1}
+            sudo docker run \
+            --env AWS_REGION=$AWS_REGION \
+            --env S3_BUCKET_NAME=$S3_BUCKET_NAME \
+            --publish 24224:24224 \
+            --publish 24224:24224/udp \
+            --volume $(pwd)/fluent.conf:/fluentd/etc/fluent.conf \
+            --name fluentd \
+            $IMAGE_NAME:$COMMIT_SHA_TAG fluentd --config /fluentd/etc/fluent.conf --verbose
